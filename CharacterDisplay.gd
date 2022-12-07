@@ -11,5 +11,5 @@ func load_character_data(data):
     if ("ERROR" in n):
         n = n.replace("DOTCHAR", ".").replace("SLASHCHAR", "/").replace("SLASHCHAR", "-").replace("COLONCHAR", ":")
         get_node("CharacterLabel").align = 0
-        theme = load("res://char_loader/error.tres")
+        theme = load("res://char_loader/visuals/error.tres")
     $"%CharacterLabel".text = n

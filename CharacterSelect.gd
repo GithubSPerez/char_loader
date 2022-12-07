@@ -174,7 +174,6 @@ func loadListChar(index, hideName = false): # hide name parameter is for online,
 	# update the button's character scene
 	loadingText = "Loading scene..."
 	bttContainer.get_node(curFighter).character_scene = load(_charPath)
-	loadingText = "Scene Loaded"
 	
 	if (miss != []):
 		loadingLabel_stop()
@@ -242,22 +241,26 @@ func buffer_select(button):
 # as of update 3.3, this function gets called on _process. hopefully in the future this can be added onto another init function
 func createButtons():
 	var prevBtts = bttContainer.get_children()
+	var prevChars = []
 
 	for child in prevBtts:
+		if (!isCustomChar(child.text)):
+			prevChars.append([child.character_scene, child.text])
 		child.free()
+
+	_Global.default_chars = len(prevChars) # only real way of actually knowing
 
 	loadedChars = []
 	buttons = []
 	
 	# re-add default buttons
-	for i in _Global.default_chars:
-		var name = Global.name_paths.keys()[i]
+	for charInfo in prevChars:
 		var button = preload("res://ui/CSS/CharacterButton.tscn").instance()
-		button.character_scene = load(Global.name_paths[name])
+		button.character_scene = charInfo[0]
 		$"%CharacterButtonContainer".add_child(button)
 		button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 
-		button.text = name
+		button.text = charInfo[1]
 	
 	# add custom character buttons
 	customCharNumber = 0
@@ -328,7 +331,7 @@ func _ready():
 
 	for i in 2:
 		arrowSprites[i] = Sprite.new()
-		arrowSprites[i].texture = textureGet("res://char_loader/arrow_" + arrowName[i] + ".png")
+		arrowSprites[i].texture = textureGet("res://char_loader/visuals/arrow_" + arrowName[i] + ".png")
 		self.add_child(arrowSprites[i])
 		arrowSprites[i].position = Vector2(arrowPos[i], 263)
 
@@ -344,10 +347,16 @@ func _process(delta):
 	var makeButtons = false
 	var curButtons = bttContainer.get_children()
 
-	if (len(curButtons) == _Global.default_chars): # if there's only default character buttons
-		if (buttonsToLoad != []):
+	var isThereCustoms = false
+	var bNames = []
+	for b in curButtons:
+		if isCustomChar(b.text):
 			makeButtons = true
-	elif (isCustomChar(curButtons[len(curButtons) - 1].text)): # if there's any button that erroneously has a custom character's name (happens with 3.3)
+			break
+		elif !(b.text in Global.name_paths.keys()):
+			isThereCustoms = true
+			break
+	if (!isThereCustoms):
 		makeButtons = true
 	
 	if (makeButtons):
