@@ -106,6 +106,9 @@ var oggstr_header
 
 func addCustomChar(_name, _charPath, _bttName = ""):
 	buttonsToLoad.append([_name, _charPath, _bttName])
+	update_fighter_vars(_name, _charPath, _bttName)
+
+	charFolders.append(curModFolder)
 
 func addCharButton(_name, _charPath, _bttName = ""):
 	update_fighter_vars(_name, _charPath, _bttName)
@@ -130,8 +133,6 @@ func addCharButton(_name, _charPath, _bttName = ""):
 		
 		# load placeholder portrait
 		_importHolderPortrait(curModFolder, _charPath, curFighter)
-
-		charFolders.append(curModFolder)
 
 		# move up player portraits if theres more than 5 buttons
 		if (_Global.default_chars + customCharNumber > 5):
