@@ -96,6 +96,7 @@ func update_fighter_vars(_name, _charPath, _bttName):
 
 # General mod vars #
 var serverMods = []
+var charPackages = {}
 
 # Header vars #
 var sample_header
@@ -105,19 +106,20 @@ var oggstr_header
 ## Character data functions ##
 
 func addCustomChar(_name, _charPath, _bttName = ""):
-	buttonsToLoad.append([_name, _charPath, _bttName])
 	update_fighter_vars(_name, _charPath, _bttName)
+	if !(curFighter in name_to_folder.keys()): # prevent duplicates
+		buttonsToLoad.append([_name, _charPath, _bttName])
+		charList.append([_name, _charPath, _bttName])
+		name_to_folder[curFighter] = curModFolder
+		name_to_index[curFighter] = len(charList) - 1
 
-	charFolders.append(curModFolder)
+		charFolders.append(curModFolder)
 
 func addCharButton(_name, _charPath, _bttName = ""):
 	update_fighter_vars(_name, _charPath, _bttName)
 
 	if (bttContainer.get_node_or_null(curFighter) == null): # this check is to prevent duplicate buttons
 		customCharNumber += 1
-		charList.append([_name, _charPath, _bttName])
-		name_to_folder[curFighter] = curModFolder
-		name_to_index[curFighter] = len(charList) - 1
 
 		# adding a button row for every 10 characters
 		if (_Global.default_chars + customCharNumber - 10 * (rows - 1) > 10):
@@ -154,14 +156,17 @@ func loadListChar(index, hideName = false): # hide name parameter is for online,
 
 	loadingLabel_start() # little message at the corner of the screen that shows up saying "Character Loaded"
 	
-	var miss = _createImportFiles(curModFolder, curFighter if !hideName else "Opponent's Character") # this function will return the missing files array, it also updates the loading percent
+	var displayName = curFighter if !hideName else "Opponent's Character"
+
+	var miss = _createImportFiles(curModFolder, displayName) # this function will return the missing files array, it also updates the loading percent
 	miss += _validateScene(_charPath, name_to_folder[curFighter])
+	
+	loadingText = "Loading " + getCharName(displayName) + " scene..."
 
 	# loading the scene. if there's missing files, the scene isn't loaded and a list shows up on screen
 	# the scene is edited, the node name gets updated
 	var char_scene
 	if (miss == []):
-		loadingText = "Editing scene name..."
 		char_scene = load(_charPath).instance()
 		char_scene.name = curFighter
 	else:
@@ -169,11 +174,9 @@ func loadListChar(index, hideName = false): # hide name parameter is for online,
 		for f in miss:
 			errorMessage[curFighter] += "\n" + f
 	
-	loadingText = "Saving changes..."
 	ModLoader.saveScene(char_scene, _charPath)
 
 	# update the button's character scene
-	loadingText = "Loading scene..."
 	bttContainer.get_node(curFighter).character_scene = load(_charPath)
 	
 	if (miss != []):
@@ -280,12 +283,18 @@ func createButtons():
 ## Ready and Process ##
 
 func _ready():
+	var dir = Directory.new()
+
 	#get all of the modsses
 	_Global.css_instance = self
 	self.visible = false
 	hash_to_folder = {}
 	serverMods = []
 	Network.hash_to_folder = {}
+	if (!dir.dir_exists("user://char_cache")):
+		dir.make_dir("user://char_cache")
+	charPackages = {}
+	var caches = ModLoader._get_all_files("user://char_cache", "pck") # format: [mod name]-[author name]-[mod hash].pck
 	for zip in ModLoader._modZipFiles:
 		var gdunzip = load("res://addons/gdunzip/gdunzip.gd").new()
 		gdunzip.load(zip)
@@ -304,6 +313,13 @@ func _ready():
 				is_serverSided = false
 		if is_serverSided:
 			serverMods.append(hashy)
+		for f in caches:
+			var fName = f.replace("user://char_cache/", "")
+			if fName.find(md.name.validate_node_name()) == 0 && fName.find(md.author.validate_node_name()) != -1:
+				if fName.find(hashy) == -1:
+					dir.remove(f)
+				else:
+					charPackages[md.name] = f
 			
 
 	var bttRow = self.get_node("CharacterButtonContainer")
@@ -884,15 +900,27 @@ func _import_start():
 	var dir = Directory.new()
 	dir.make_dir("user://mod_temp")
 
+func _import_copy(destFile):
+	var dir = Directory.new()
+	dir.copy("user://imagepack.pck", destFile)
+
 func _import_end():
 	p.flush()
 
 	ProjectSettings.load_resource_pack("user://imagepack.pck")
 
 func _createImportFiles(folder, _charName): # returns an array of missing files
-	_import_start()
-
 	var dir = Directory.new()
+
+	# if mod cache exists, just import it and return
+	var md = ModLoader._readMetadata(folder + "/_metadata")
+	var modName = md.name
+	if (modName in charPackages.keys()):
+		loadingText = "Loading Cached Package"
+		ProjectSettings.load_resource_pack(charPackages[modName])
+		return []
+	
+	_import_start()
 
 	var assets = ModLoader._get_all_files(folder, "png") + ModLoader._get_all_files(folder, "wav") + ModLoader._get_all_files(folder, "ogg")
 	var delList = [] # list of all the temp files that should be deleted once the conversion is done
@@ -947,5 +975,8 @@ func _createImportFiles(folder, _charName): # returns an array of missing files
 	for f in delList:
 		dir.remove(f)
 	dir.remove("user://mod_temp")
+	
+	if (missingFiles == []):
+		_import_copy("user://char_cache/" + modName.validate_node_name() + "-" + md.author.validate_node_name() + "-" + folder_to_hash(folder) + ".pck") # will cache the asset package for faster load times on subsequent sessions
 
 	return missingFiles

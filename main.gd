@@ -2,6 +2,25 @@ extends "res://main.gd"
 
 var _Global = Network
 
+# delete character cache button
+func _ready():
+    var container = $"%OptionsContainer".get_node("VBoxContainer").get_node("Contents").get_node("VBoxContainer").get_node("VBoxContainer")
+
+    if (container.get_node_or_null("LoadOnStart") == null):
+        var btt = Button.new()
+        btt.name = "DeleteCache"
+        btt.text = "delete character cache"
+        container.add_child(btt)
+        container.move_child(btt, len(container.get_children()) - 4)
+        btt.connect("pressed", self, "_delete_char_cache", [btt])
+
+func _delete_char_cache(btt):
+    var dir = Directory.new()
+    _Global.css_instance.charPackages = {}
+    for f in ModLoader._get_all_files("user://char_cache", "pck"):
+        dir.remove(f)
+    get_tree().quit()
+
 # this just loads the necessary custom characters through characterSelect.gd
 func _on_loaded_replay(match_data):
     _Global.css_instance.net_loadReplayChars([match_data.selected_characters[1]["name"], match_data.selected_characters[2]["name"], match_data])
