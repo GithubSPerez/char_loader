@@ -317,6 +317,9 @@ func _ready():
 	h.open("res://char_loader/headers/sample.header", File.READ)
 	sample_header = h.get_buffer(h.get_len())
 	h.close()
+	h.open("res://char_loader/headers/oggstr.header", File.READ)
+	oggstr_header = h.get_buffer(h.get_len())
+	h.close()
 	loadingLabel = createLabel("Character Loaded", "Loaded", 0, 345)
 	loadingLabel.percent_visible = 0
 
@@ -702,6 +705,27 @@ func save_stex(image, save_path):
 	stexf.store_buffer(pngdata)
 	stexf.close()
 
+func save_oggstr(og_file, dest_file):
+	var f = File.new()
+	f.open(og_file, File.READ)
+	var _len = f.get_len()
+	var buf = f.get_buffer(_len)
+	f.close()
+
+	f.open(dest_file, File.WRITE)
+	f.store_buffer(oggstr_header)
+	# Currently looping and loop_offset are part of the header and i'm not sure how exactly they're stored there.
+
+	# This is probably not necessary anymore- i did this when i was confused at why it wasn't working
+	# then it hit me- it was trying to save as stex at the time, and wasn't running this func at all
+	var len_bytes = [_len&255,(_len&(65535))>>8,(_len&(16777216))>>16,_len>>24] 
+	writeHex(f,len_bytes,8)
+	f.store_buffer(buf)
+	f.store_string("RSRC")
+	f.close()
+
+
+
 # save sample function made specifically for char loader
 func save_sample(og_file, dest_file):
 
@@ -870,7 +894,7 @@ func _createImportFiles(folder, _charName): # returns an array of missing files
 
 	var dir = Directory.new()
 
-	var assets = ModLoader._get_all_files(folder, "png") + ModLoader._get_all_files(folder, "wav")
+	var assets = ModLoader._get_all_files(folder, "png") + ModLoader._get_all_files(folder, "wav") + ModLoader._get_all_files(folder, "ogg")
 	var delList = [] # list of all the temp files that should be deleted once the conversion is done
 	
 	var missingFiles = []
@@ -889,10 +913,12 @@ func _createImportFiles(folder, _charName): # returns an array of missing files
 			if (!dir.file_exists(dest)):
 				# save the conversion to the temp folder
 				var tmpFile = "user://mod_temp/" + dest.split("://.import/")[1]
-				if (dest.replace(".sample", "") == dest):
+				if (dest.ends_with(".stex")):
 					var img = Image.new()
 					img.load(assets[i])
 					save_stex(img, tmpFile)
+				elif (dest.ends_with(".oggstr")):
+					save_oggstr(assets[i], tmpFile)
 				else:
 					save_sample(assets[i], tmpFile)
 				
