@@ -158,8 +158,7 @@ func loadListChar(index, hideName = false): # hide name parameter is for online,
 	
 	var displayName = curFighter if !hideName else "Opponent's Character"
 
-	var miss = _createImportFiles(curModFolder, displayName) # this function will return the missing files array, it also updates the loading percent
-	miss += _validateScene(_charPath, name_to_folder[curFighter])
+	var miss = _createImportFiles(curModFolder, displayName, _charPath) # this function will return the missing files array, it also updates the loading percent
 	
 	loadingText = "Loading " + getCharName(displayName) + " scene..."
 
@@ -285,7 +284,12 @@ func createButtons():
 func _ready():
 	var dir = Directory.new()
 
-	#get all of the modsses
+	# for retro compatibility reasons, copying PlayerInfo over from characters/ (5.0 onwards) to ui/ (4.10 and below)
+	if (dir.file_exists("res://characters/PlayerInfo.tscn") && !dir.file_exists("res://ui/PlayerInfo.tscn")):
+		var pi_scene = load("res://characters/PlayerInfo.tscn").instance()
+		ModLoader.saveScene(pi_scene, "res://ui/PlayerInfo.tscn")
+
+	# get all of the modsses
 	_Global.css_instance = self
 	self.visible = false
 	hash_to_folder = {}
@@ -294,7 +298,7 @@ func _ready():
 	if (!dir.dir_exists("user://char_cache")):
 		dir.make_dir("user://char_cache")
 	charPackages = {}
-	var caches = ModLoader._get_all_files("user://char_cache", "pck") # format: [mod name]-[author name]-[mod hash].pck
+	var caches = ModLoader._get_all_files("user://char_cache", "pck") # format: [mod name]-[author name]-[mod hash]-[game version].pck
 	for zip in ModLoader._modZipFiles:
 		var gdunzip = load("res://addons/gdunzip/gdunzip.gd").new()
 		gdunzip.load(zip)
@@ -316,7 +320,7 @@ func _ready():
 		for f in caches:
 			var fName = f.replace("user://char_cache/", "")
 			if fName.find(md.name.validate_node_name()) == 0 && fName.find(md.author.validate_node_name()) != -1:
-				if fName.find(hashy) == -1:
+				if fName.find(hashy) == -1 || fName.find(Global.VERSION.validate_node_name()) == -1:
 					dir.remove(f)
 				else:
 					charPackages[md.name] = f
@@ -871,6 +875,9 @@ func _validateScene(scenePath, _modFolder):
 	var hintMsg = []
 	var missing = []
 	var line = "]"
+	var sceneName = scenePath.replace(scenePath.get_base_dir() + "/", "")
+
+	var otherScenes = [] # if any of these resources is a scene then it should also validate its files. any scene found on this scene will be queued and then validated
 	while line.find("]") != -1:
 		line = f.get_line().replace("\n", "").replace("\r", "")
 		if line == "":
@@ -879,16 +886,21 @@ func _validateScene(scenePath, _modFolder):
 			f.get_line() # skip the next line, that should be empty
 			continue
 		var resPath = line.split("path=\"")[1].split("\" type=")[0]
-		loadingText = "Validating..."
+		loadingText = "Validating"+ sceneName +"..."
 		if !dir.file_exists(resPath):
 			if !ResourceLoader.exists(resPath):
 				var fullMiss = resPath
 				missing.append(fullMiss)
 				if (resPath.find(_modFolder) == -1):
 					hintMsg = [
-						"## NOTICE: all of the following paths are being read from \"" + scenePath.replace(scenePath.get_base_dir() + "/", "") + "\".",
+						"## NOTICE: all of the following paths are being read from \"" + sceneName + "\".",
 						"## godot automatically generates all of these paths depending on their location in the FileSystem tab."
 					]
+		elif resPath.find(".tscn") != -1:
+			otherScenes.append(resPath) # queue scene
+	
+	for s in otherScenes: # validate queued scenes
+		missing += _validateScene(s, _modFolder)
 	return hintMsg + missing
 
 # opening and loading packages, used for the .import file conversions. also adds a temp folder to be deleted afterwards
@@ -909,7 +921,7 @@ func _import_end():
 
 	ProjectSettings.load_resource_pack("user://imagepack.pck")
 
-func _createImportFiles(folder, _charName): # returns an array of missing files
+func _createImportFiles(folder, _charName, _charPath): # returns an array of missing files
 	var dir = Directory.new()
 
 	# if mod cache exists, just import it and return
@@ -976,7 +988,9 @@ func _createImportFiles(folder, _charName): # returns an array of missing files
 		dir.remove(f)
 	dir.remove("user://mod_temp")
 	
+	missingFiles += _validateScene(_charPath, name_to_folder[curFighter])
+
 	if (missingFiles == []):
-		_import_copy("user://char_cache/" + modName.validate_node_name() + "-" + md.author.validate_node_name() + "-" + folder_to_hash(folder) + ".pck") # will cache the asset package for faster load times on subsequent sessions
+		_import_copy("user://char_cache/" + modName.validate_node_name() + "-" + md.author.validate_node_name() + "-" + folder_to_hash(folder) + "-" + Global.VERSION.validate_node_name() + ".pck") # will cache the asset package for faster load times on subsequent sessions
 
 	return missingFiles
