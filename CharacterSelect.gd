@@ -300,7 +300,7 @@ func _ready():
 	charPackages = {}
 	var caches = ModLoader._get_all_files("user://char_cache", "pck") # format: [mod name]-[author name]-[mod hash]-[game version].pck
 	for zip in ModLoader._modZipFiles:
-		var gdunzip = load("res://addons/gdunzip/gdunzip.gd").new()
+		var gdunzip = load("res://addons/modloader/gdunzip.gd").new()
 		gdunzip.load(zip)
 		var folder = ""
 		for modEntryPath in gdunzip.files:
