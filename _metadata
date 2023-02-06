@@ -8,5 +8,5 @@
   "id": "40431",
   "requires": [""],
   "overwrites": false,
-  "priority": -10000,
+  "priority": -10000
 }
