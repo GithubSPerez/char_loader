@@ -18,13 +18,22 @@ func _init(modLoader = ModLoader):
     modLoader.installScriptExtension("res://char_loader/CharacterSelect.gd")
     modLoader.installScriptExtension("res://char_loader/main.gd")
     modLoader.installScriptExtension("res://char_loader/ErrorLabel.gd")
+    modLoader.installScriptExtension("res://char_loader/UILayer.gd")
+
+    var ver = -1
+    if ("1.0." in Global.VERSION):
+        ver = int(Global.VERSION.split("1.0.")[1][0])
+    if !(ver > 3 or ver == -1):
+        modLoader.installScriptExtension("res://char_loader/P2P_retroFix.gd")
+
+    modLoader.installScriptExtension("res://char_loader/SteamLobby.gd")
+    modLoader.installScriptExtension("res://char_loader/uiSteamLobby.gd")
     
     installNetworkExtension("res://char_loader/Network.gd")
-    Global.VERSION += " [Online Char Loader " + modLoader._readMetadata("res://char_loader/_metadata")["version"] + "]"
 
 func _ready():
     var btt_scene = load("res://ui/CSS/CharacterButton.tscn").instance()
     btt_scene.set_custom_minimum_size(Vector2(60, 20))
     ModLoader.saveScene(btt_scene, "res://ui/CSS/CharacterButton.tscn")
     print("Char Loader: sorry about all those errors, had to force ModHashCheck to not run otherwise online functionality is impossible\n----------------------------------------------------\n")
-    Network.default_chars = len(Global.name_paths)
+    #Network.default_chars = len(Global.name_paths) # this would only work if there were no dlc characters planned for the future

@@ -21,8 +21,14 @@ func _delete_char_cache(btt):
         dir.remove(f)
     get_tree().quit()
 
-# this just loads the necessary custom characters through characterSelect.gd
+# these just load the necessary custom characters through characterSelect.gd
 func _on_loaded_replay(match_data):
     _Global.css_instance.net_loadReplayChars([match_data.selected_characters[1]["name"], match_data.selected_characters[2]["name"], match_data])
     match_data["replay"] = true
     _on_match_ready(match_data)
+
+func _on_received_spectator_match_data(data):
+    get_node("/root/SteamLobby/LoadingSpectator/Label").text = "Spectating...\n(Loading Characters, this may take a while)"
+    _Global.css_instance.net_loadReplayChars([data.selected_characters[1]["name"], data.selected_characters[2]["name"], data])
+    data["spectating"] = true
+    _on_match_ready(data)

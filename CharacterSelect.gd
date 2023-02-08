@@ -97,6 +97,7 @@ func update_fighter_vars(_name, _charPath, _bttName):
 # General mod vars #
 var serverMods = []
 var charPackages = {}
+onready var clVersion = ModLoader._readMetadata("res://char_loader/_metadata")["version"]
 
 # Header vars #
 var sample_header
@@ -245,17 +246,19 @@ func buffer_select(button):
 func createButtons():
 	var prevBtts = bttContainer.get_children()
 	var prevChars = []
+	var prevCharNames = [] # to prevent duplicates
 
 	for child in prevBtts:
-		if (!isCustomChar(child.text)):
+		if (!isCustomChar(child.text) and !(child.text in prevCharNames)):
 			prevChars.append([child.character_scene, child.text])
+			prevCharNames.append(child.text)
 		child.free()
 
 	_Global.default_chars = len(prevChars) # only real way of actually knowing
 
 	loadedChars = []
 	buttons = []
-	
+
 	# re-add default buttons
 	for charInfo in prevChars:
 		var button = preload("res://ui/CSS/CharacterButton.tscn").instance()
@@ -320,7 +323,7 @@ func _ready():
 		for f in caches:
 			var fName = f.replace("user://char_cache/", "")
 			if fName.find(md.name.validate_node_name()) == 0 && fName.find(md.author.validate_node_name()) != -1:
-				if fName.find(hashy) == -1 || fName.find(Global.VERSION.validate_node_name()) == -1:
+				if fName.find(hashy) == -1 || fName.find(clVersion.validate_node_name()) == -1:
 					dir.remove(f)
 				else:
 					charPackages[md.name] = f
@@ -367,6 +370,9 @@ var createdButtons = false
 var buffer_go = false
 
 func _process(delta):
+	# new version code thing
+	Global.VERSION = _Global.ogVersion.split("Modded")[0] + "CL-" + clVersion
+
 	# check if custom character buttons haven't been created yet and if they haven't then create them
 	var makeButtons = false
 	var curButtons = bttContainer.get_children()
@@ -490,6 +496,9 @@ func _process(delta):
 				retract_loaded = false
 				loadingLabel.percent_visible = 0
 	
+	if _Global.isSteamGame:
+		Network.multiplayer_host = Network.steam_isHost
+
 	# this buffer go thing is done bc if the go() function is called inside of a thread the game doesn't load correctly
 	if (buffer_go):
 		if loadThread != null:
@@ -544,12 +553,12 @@ func retro_charName(_name):
 			return k
 	return name_to_index.keys()[0]
 
-func createLabel(_text, _name, _x, _y):
+func createLabel(_text, _name, _x, _y, _from = self):
 	var label = Label.new()
 	label.text = _text
 	label.name = _name
 	label.set_position(Vector2(_x, _y))
-	self.add_child(label)
+	_from.add_child(label)
 	return label
 	
 
@@ -598,6 +607,7 @@ func _on_network_match_locked_in(match_data):
 
 var enable_online_go = false
 func net_async_loadOtherChar():
+	print("there should be 2 of these")
 	for c in selected_characters.values():
 		if (c != null):
 			if (isCustomChar(c.name)):
@@ -607,7 +617,8 @@ func net_async_loadOtherChar():
 				currentlyLoading = false
 
 	if !Network.multiplayer_host:
-		Network.rpc_("go_button_activate")
+		net_sendPacket("go_button_activate")
+		#Network.rpc_("go_button_activate")
 	else:
 		$"%GoButton".show()
 		$"%GoButton".connect("pressed", self, "net_startMatch")
@@ -617,7 +628,8 @@ func net_async_loadOtherChar():
 
 func net_startMatch():
 	buffer_go = true
-	Network.rpc_("go_button_pressed")
+	net_sendPacket("go_button_pressed")
+	#Network.rpc_("go_button_pressed")
 
 func net_updateModLists():
 	Network.normal_mods = []
@@ -658,6 +670,12 @@ func net_isCharacterAvailable(_charName):
 			return false
 	return true
 
+func net_sendPacket(name):
+	if (_Global.isSteamGame):
+		var fullData = {"_packetName" : name}
+		SteamLobby._send_P2P_Packet(SteamLobby.OPPONENT_ID, fullData)
+	else:
+		Network.rpc_(name)
 
 ## Import conversion things ##
 
@@ -991,6 +1009,6 @@ func _createImportFiles(folder, _charName, _charPath): # returns an array of mis
 	missingFiles += _validateScene(_charPath, name_to_folder[curFighter])
 
 	if (missingFiles == []):
-		_import_copy("user://char_cache/" + modName.validate_node_name() + "-" + md.author.validate_node_name() + "-" + folder_to_hash(folder) + "-" + Global.VERSION.validate_node_name() + ".pck") # will cache the asset package for faster load times on subsequent sessions
+		_import_copy("user://char_cache/" + modName.validate_node_name() + "-" + md.author.validate_node_name() + "-" + folder_to_hash(folder) + "-" + clVersion.validate_node_name() + ".pck") # will cache the asset package for faster load times on subsequent sessions
 
 	return missingFiles
