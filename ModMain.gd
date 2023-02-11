@@ -20,6 +20,7 @@ func _init(modLoader = ModLoader):
     modLoader.installScriptExtension("res://char_loader/ErrorLabel.gd")
     modLoader.installScriptExtension("res://char_loader/UILayer.gd")
 
+    # this is only for compatibility with 1.0.3, from 1.0.4 onwards none of this has to be overwritten
     var ver = -1
     if ("1.0." in Global.VERSION):
         ver = int(Global.VERSION.split("1.0.")[1][0])

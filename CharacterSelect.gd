@@ -244,6 +244,11 @@ func buffer_select(button):
 
 # as of update 3.3, this function gets called on _process. hopefully in the future this can be added onto another init function
 func createButtons():
+	# in case there's no custom characters installed
+	if (len(buttonsToLoad)) == 0:
+		_Global.default_chars = len(bttContainer.get_children())
+		return
+
 	var prevBtts = bttContainer.get_children()
 	var prevChars = []
 	var prevCharNames = [] # to prevent duplicates
@@ -425,6 +430,8 @@ func _process(delta):
 			if searchFound:
 				var charNum = min(_Global.default_chars + customCharNumber - curPage * 50, 50)
 				var pageRows = min(rows - 5 * curPage, 5)
+				if (pageRows == 0):
+					break
 				var maxPerRow = int(1 + ceil(charNum / pageRows))
 				if (charNum % pageRows == 0):
 					maxPerRow -= 1
@@ -525,7 +532,7 @@ func _input(event):
 ## General helper functions ##
 
 func getPageAmmount():
-	return 1 + floor(rows / maxRows)
+	return 1 + floor(rows / (maxRows + 1))
 
 func textureGet(imagePath):
 	var image = Image.new()
