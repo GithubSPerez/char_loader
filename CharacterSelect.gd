@@ -319,6 +319,8 @@ func _ready():
 		hash_to_folder[hashy] = folder
 		Network.hash_to_folder[hashy] = folder
 		var md = ModLoader._readMetadata(folder + "/_metadata")
+		if (md == null):
+			continue
 		var is_serverSided = true
 		if md.has("client_side"):
 			if md["client_side"]:
@@ -332,7 +334,6 @@ func _ready():
 					dir.remove(f)
 				else:
 					charPackages[md.name] = f
-			
 
 	var bttRow = self.get_node("CharacterButtonContainer")
 	bttRow.margin_left = -305
@@ -440,8 +441,9 @@ func _process(delta):
 				var curRowLength = maxPerRow
 				if row == pageRows - 1:
 					curRowLength = charNum - (maxPerRow * (pageRows - 1))
-				var halfSize = (61 * curRowLength) / 2
-				b.set_position(Vector2(buttons_x + 640 * curPage + (305 + col * 61 - halfSize), (getButtonHeight(rows) + 1) * row))
+				var bttWidth = 61
+				var halfSize = (bttWidth * curRowLength) / 2
+				b.set_position(Vector2(buttons_x + 640 * curPage + (305 + col * bttWidth - halfSize), (getButtonHeight(rows) + 1) * row))
 			else:
 				b.set_position(Vector2(-1000, -100))
 		if searchFound:
